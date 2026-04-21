@@ -426,27 +426,51 @@ def ui_model1():
     st.header("模型1: 单片几何参数互算")
     st.markdown("支持 **卷耳片** (r > 0) 和 **简单直片** (r = 0)")
 
+    top1, top2, top3 = st.columns([2, 2, 3])
+    with top1:
+        spring_type = st.radio("板簧类型", ["卷耳片", "简单直片"], horizontal=True)
+    with top2:
+        mode = st.radio("计算模式", ["正向计算", "单变量反算"], horizontal=True)
+    with top3:
+        if mode == "单变量反算":
+            sv_col, tv_col, val_col = st.columns(3)
+            with sv_col:
+                solve_var = st.selectbox("求解变量", ["D", "H", "r", "t"])
+            with tv_col:
+                target_var = st.selectbox("目标变量", ["曲率半径 R", "夹角 α (°)", "伸直半长 s", "伸直全长 2s", "弦长全长 2D"])
+            with val_col:
+                target_val = st.number_input("目标值", value=0.0, format="%.6f")
+            solve_bounds = st.slider("求解范围", 0.01, 50000.0, (0.01, 10000.0))
+        else:
+            solve_var = None
+
+    st.divider()
     col1, col2 = st.columns(2)
     with col1:
-        spring_type = st.radio("板簧类型", ["卷耳片", "简单直片"], horizontal=True)
         if spring_type == "卷耳片":
-            D = st.number_input("弦长半长 D (mm)", value=560.07, format="%.4f")
-            H = st.number_input("自由弧高 H (mm)", value=108.0, format="%.4f")
-            r = st.number_input("卷耳内半径 r (mm)", value=18.5, format="%.4f")
-            t = st.number_input("片厚 t (mm)", value=10.0, format="%.4f")
+            D = st.number_input("弦长半长 D (mm)", value=560.07, format="%.4f",
+                                disabled=(solve_var == "D"),
+                                help="此项为求解目标，无需填写" if solve_var == "D" else None)
+            H = st.number_input("自由弧高 H (mm)", value=108.0, format="%.4f",
+                                disabled=(solve_var == "H"),
+                                help="此项为求解目标，无需填写" if solve_var == "H" else None)
+            r = st.number_input("卷耳内半径 r (mm)", value=18.5, format="%.4f",
+                                disabled=(solve_var == "r"),
+                                help="此项为求解目标，无需填写" if solve_var == "r" else None)
+            t = st.number_input("片厚 t (mm)", value=10.0, format="%.4f",
+                                disabled=(solve_var == "t"),
+                                help="此项为求解目标，无需填写" if solve_var == "t" else None)
         else:
-            D = st.number_input("弦长半长 D (mm)", value=624.79, format="%.4f")
-            H = st.number_input("自由弧高 H (mm)", value=59.0, format="%.4f")
+            D = st.number_input("弦长半长 D (mm)", value=624.79, format="%.4f",
+                                disabled=(solve_var == "D"),
+                                help="此项为求解目标，无需填写" if solve_var == "D" else None)
+            H = st.number_input("自由弧高 H (mm)", value=59.0, format="%.4f",
+                                disabled=(solve_var == "H"),
+                                help="此项为求解目标，无需填写" if solve_var == "H" else None)
             r = 0.0
-            t = st.number_input("片厚 t (mm)", value=16.0, format="%.4f")
-
-    with col2:
-        mode = st.radio("计算模式", ["正向计算", "单变量反算"], horizontal=True)
-        if mode == "单变量反算":
-            target_var = st.selectbox("目标变量", ["曲率半径 R", "夹角 α (°)", "伸直半长 s", "伸直全长 2s", "弦长全长 2D"])
-            target_val = st.number_input("目标值", value=0.0, format="%.6f")
-            solve_var = st.selectbox("求解变量", ["D", "H", "r", "t"])
-            solve_bounds = st.slider("求解范围", 0.01, 50000.0, (0.01, 10000.0))
+            t = st.number_input("片厚 t (mm)", value=16.0, format="%.4f",
+                                disabled=(solve_var == "t"),
+                                help="此项为求解目标，无需填写" if solve_var == "t" else None)
 
     if st.button("计算", type="primary"):
         if mode == "正向计算":
@@ -459,13 +483,13 @@ def ui_model1():
                 st.error(f"计算错误: {e}")
         else:
             params = {"D": D, "H": H, "r": r, "t": t}
-            var_map = {"D": "D", "H": "H", "r": "r", "t": "t"}
             sol, result = solve_single_variable(
-                model1_forward, params, var_map[solve_var],
+                model1_forward, params, solve_var,
                 target_var, target_val, bounds=solve_bounds
             )
             if sol is not None:
-                st.success(f"求解完成: {solve_var} = {sol:.6f}")
+                label = {"D": "弦长半长 D", "H": "自由弧高 H", "r": "卷耳内半径 r", "t": "片厚 t"}[solve_var]
+                st.success(f"求解完成：{label} = {sol:.6f} mm")
                 df = pd.DataFrame(list(result.items()), columns=["参数", "值"])
                 st.dataframe(df, use_container_width=True, hide_index=True)
             else:
